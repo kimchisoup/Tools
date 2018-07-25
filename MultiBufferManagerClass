@@ -1,0 +1,232 @@
+class BufferClass<T>
+    {
+        bool initialized = false;
+        public int addrCount = 0;
+        public int[] addrArray { get; set;}
+        public int[] addrSize { get; set; }
+
+        public string[] deviceCode { get; set; }
+
+        private List<T[]> buffer = new List<T[]>();
+        private int maxArrayRange;
+        private int currentRangeIndex = 0;
+
+        public BufferClass()
+        {
+
+        }
+
+        public bool Initialize(int count, int totalSize, int[] size, string[] device, int maxArray)
+        {
+
+            try
+            {
+
+                if (totalSize == 0)
+                {
+                    return false;
+                }
+
+                if (count == 0)
+                {
+                    return false;
+                }
+                maxArrayRange = maxArray;
+                addrCount = count;
+                addrArray = new int[count];
+                addrSize = new int[count];
+                deviceCode = new string[count];
+
+            
+                for(int i=0;i<maxArray;i++)
+                {
+                    buffer.Add(new T[totalSize]);
+                }
+                for (int i = 0; i < count; i++)
+                {
+                    addrSize[i] = size[i];
+                    deviceCode[i] = device[i];
+                }
+            }
+            catch (Exception except)
+            {
+                API.OutputDebugString("[EMelsec : BufferClass] : " + except.ToString());
+                return false;
+            }
+
+            initialized = true;
+
+            return initialized;
+        }
+
+        public bool SetBufferData(int addr, T[] data)
+        {
+            if (buffer == null)
+            {
+                API.OutputDebugString("[EMelsec : BufferClass] : buffer is null");
+                return false;
+            }
+
+
+
+            try
+            {
+                if (addr == 0)
+                {
+                    Buffer.BlockCopy(buffer[currentRangeIndex], 0, buffer[NextArrayIndex()], 0, buffer[currentRangeIndex].Length);
+                }
+
+                Buffer.BlockCopy(data, 0, buffer[currentRangeIndex], addr, data.Length);
+            }
+            catch (Exception except)
+            {
+                API.OutputDebugString("[EMelsec : BufferClass] : " + except.ToString());
+                return false;
+            }
+            return true;
+        }
+
+        public T[] GetBufferData()
+        {
+
+            if (buffer == null)
+            {
+                API.OutputDebugString("[EMelsec : BufferClass] : buffer is null");
+                return null;
+            }
+
+
+            return buffer[currentRangeIndex];
+        }
+
+        public List<T[]> GetAllBufferData()
+        {
+
+            if (buffer == null)
+            {
+                API.OutputDebugString("[EMelsec : BufferClass] : buffer is null");
+                return null;
+            }
+
+
+            List<T[]> result = new List<T[]>();
+
+            for (int i = 0; i < maxArrayRange; i++)
+            {
+                result.Add(buffer[PreviousArrayIndex(i)]);
+            }
+
+            return result;
+
+        }
+
+        public int GatMaxArrayRnage()
+        {
+            return maxArrayRange;
+        }
+
+        private int NextArrayIndex()
+        {
+            currentRangeIndex++;
+
+
+            if (currentRangeIndex == maxArrayRange)
+            {
+                currentRangeIndex = 0;
+            }
+
+            return currentRangeIndex;
+
+        }
+
+        private int PreviousArrayIndex(int pre)
+        {
+            int index = currentRangeIndex;
+
+            for (int i = 0; i < pre; i++)
+            {
+                index--;
+
+                if (index < 0)
+                {
+                    index = maxArrayRange - 1;
+                }
+
+            }
+
+            return index;
+        }
+
+        public int GetBufferDivision(int MSS)
+        {
+            if (buffer == null)
+            {
+                return -1;
+            }
+
+            int result = 0;
+
+            foreach (int s in addrSize)
+            {
+                if (s == 0)
+                {
+                    return -1;
+                }
+                result += (s / MSS) + 1;
+            }
+
+            return result;
+        }
+
+        public int GetBufferOrder(int divisionCount, int MSS)
+        {
+
+            int count = 0;
+            int result = 0;
+
+            foreach (int s in addrSize)
+            {
+                if (s == 0)
+                {
+                    return -1;
+                }
+
+                count += (s / MSS) + 1;
+
+                if (divisionCount < count)
+                {
+                    return result;
+                }
+
+                result++;
+            }
+
+            return -1;
+        }
+
+        public int GetBufferStartAddr(int arrayNum, int curCount, int MSS)
+        {
+            try
+            { 
+                int count = 0;
+                int lastlegnth = 0;
+                int result = 0;
+
+                for (int i = 0; i < arrayNum; i++)
+                {
+                    lastlegnth += (addrSize[i] / MSS) + 1;
+                }
+                count = curCount - lastlegnth;
+
+                result = addrArray[arrayNum] + (MSS * count);
+
+                return result;
+            }
+            catch (Exception except)
+            {
+                API.OutputDebugString("[EMelsec : BufferClass] : " + except.ToString());
+                return -1;
+            }
+        }
+
+    }
